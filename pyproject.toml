@@ -1,0 +1,14 @@
+[project]
+name = "optimizing-langchain-ai-agents-with-contextual-engineering"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "langchain>=0.3.27",
+    "langchain-community>=0.3.27",
+    "langchain-core>=0.3.72",
+    "langchain-nvidia-ai-endpoints>=0.3.13",
+    "python-dotenv>=1.1.1",
+    "rich>=14.1.0",
+]
