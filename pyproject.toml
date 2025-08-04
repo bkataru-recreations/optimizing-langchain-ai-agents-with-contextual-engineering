@@ -9,6 +9,8 @@ dependencies = [
     "langchain-community>=0.3.27",
     "langchain-core>=0.3.72",
     "langchain-nvidia-ai-endpoints>=0.3.13",
+    "langgraph>=0.6.3",
+    "marimo>=0.14.16",
     "python-dotenv>=1.1.1",
     "rich>=14.1.0",
 ]

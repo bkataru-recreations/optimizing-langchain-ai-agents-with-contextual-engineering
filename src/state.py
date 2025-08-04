@@ -4,6 +4,16 @@ from typing import TypedDict # For defining the state schema with type hints
 from rich.console import Console # For pretty-printing output
 from rich.pretty import pprint # For pretty-printing Python objects
 
+# Import necessary libraries for environment management and LangGraph
+import getpass
+import os
+
+from langgraph.graph import END, START, StateGraph
+
+from dotenv import load_dotenv
+
+
+
 # Initialize a console for rich, formatted output
 console = Console()
 
@@ -20,3 +30,4 @@ class State(TypedDict):
     """
     topic: str
     joke: str
+
