@@ -546,6 +546,18 @@ wheels = [
 ]
 
 [[package]]
+name = "langgraph-bigtool"
+version = "0.0.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "langgraph" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6a/e0/89146c9f26480d86f73328ba642c41f4e543d5ded5ab7147a09359958085/langgraph_bigtool-0.0.3.tar.gz", hash = "sha256:f0caa0d9322487b7bb53f97177f16a45322946f48d2eba80c7f1e93b3c1d51e5", size = 11532, upload-time = "2025-06-03T17:45:19.39Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/29/68/973db3b37fcd262f9685d2b0449927fc1b847d5ed1b9c08fc4f8146aa553/langgraph_bigtool-0.0.3-py3-none-any.whl", hash = "sha256:7535c924708ca7ecfccaf57b582db331cf8f21a3cd30b60abc912a7aa0db7594", size = 8717, upload-time = "2025-06-03T17:45:18.147Z" },
+]
+
+[[package]]
 name = "langgraph-checkpoint"
 version = "2.1.1"
 source = { registry = "https://pypi.org/simple" }
@@ -883,6 +895,7 @@ dependencies = [
     { name = "langchain-nvidia-ai-endpoints" },
     { name = "langchain-ollama" },
     { name = "langgraph" },
+    { name = "langgraph-bigtool" },
     { name = "marimo" },
     { name = "ollama" },
     { name = "python-dotenv" },
@@ -897,6 +910,7 @@ requires-dist = [
     { name = "langchain-nvidia-ai-endpoints", specifier = ">=0.3.13" },
     { name = "langchain-ollama", specifier = ">=0.3.6" },
     { name = "langgraph", specifier = ">=0.6.3" },
+    { name = "langgraph-bigtool", specifier = ">=0.0.3" },
     { name = "marimo", specifier = ">=0.14.16" },
     { name = "ollama", specifier = ">=0.5.1" },
     { name = "python-dotenv", specifier = ">=1.1.1" },

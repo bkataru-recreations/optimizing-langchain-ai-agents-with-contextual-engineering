@@ -214,7 +214,7 @@ def _(
         # Generate a new joke based on the topic
         msg = llm.invoke(f"Write a short joke about {state['topic']}")
         new_joke = {"joke": msg.content}
-    
+
         # Store the new joke in long-term memory
         store.put(namespace, "last_joke", new_joke)
 
@@ -449,13 +449,80 @@ def _(
 
     print('=' * 50)
 
-    # Get the latest state of the graph
+    # Get the latest state of the graph once again
     _latest_state = _chain.get_state(_config)
 
     console.print("\n[bold magenta]Latest Graph State:[/bold magenta]")
     pprint(_latest_state)
 
     print('=' * 50)
+    return
+
+
+@app.cell
+def _(InMemoryStore, llm):
+    import uuid
+    import math
+    import types
+
+    from langgraph_bigtool import create_agent
+    from langgraph_bigtool.utils import convert_positional_only_function_to_tool
+
+    # Collect functions from `math` built-in
+    all_tools = []
+    for function_name in dir(math):
+        function = getattr(math, function_name)
+        if not isinstance(function, types.BuiltinFunctionType):
+            continue
+        # This is an idiosyncrasy of the `math` library
+        if tool := convert_positional_only_function_to_tool(function):
+            all_tools.append(tool)
+
+    print('=' * 50)
+
+    # Create registry of tools. This is a dict mapping
+    # identifiers to tool instances.
+    tool_registry = {
+        str(uuid.uuid4()): tool for tool in all_tools
+    }
+
+    from langchain_ollama import OllamaEmbeddings
+
+    # Index tool names and descriptions in the LangGraph
+    # Store. Here we use a simple in-memory store.
+    embeddings = OllamaEmbeddings(
+        model="dengcao/Qwen3-Embedding-0.6B:F16"
+    )
+
+    _store = InMemoryStore(
+        index={
+            "embed": embeddings,
+            "dims": 1024,
+            "fields": ["description"],
+        }
+    )
+
+    for tool_id, tool in tool_registry.items():
+        _store.put(
+            ("tools",),
+            tool_id,
+            {
+                "description": f"{tool.name}: {tool.description}",    
+            },
+        )
+
+    print('=' * 50)
+
+    # Initialize agent
+    _builder = create_agent(llm, tool_registry)
+    _agent = _builder.compile(store=_store)
+
+    Image(_agent.get_graph().draw_mermaid_png())
+    return
+
+
+@app.cell
+def _():
     return
 
 

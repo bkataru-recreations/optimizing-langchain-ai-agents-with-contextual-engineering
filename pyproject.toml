@@ -11,6 +11,7 @@ dependencies = [
     "langchain-nvidia-ai-endpoints>=0.3.13",
     "langchain-ollama>=0.3.6",
     "langgraph>=0.6.3",
+    "langgraph-bigtool>=0.0.3",
     "marimo>=0.14.16",
     "ollama>=0.5.1",
     "python-dotenv>=1.1.1",
