@@ -168,7 +168,7 @@ def _(console, joke_generator_state, pprint):
     # Display the stored items with rich formatting
     console.print("\n[bold green]Stored Items in Memory:[/bold green]")
     pprint(stored_items)
-    return InMemoryStore, namespace
+    return InMemoryStore, namespace, store
 
 
 @app.cell
@@ -266,11 +266,196 @@ def _(
     # Display the result showing memory persistence across threads
     console.print("\n[bold yellow]Workflow Result (Thread 2):[/bold yellow]")
     pprint(_joke_generator_state)
+    return BaseStore, InMemorySaver
+
+
+@app.cell
+def _(
+    END,
+    InMemoryStore,
+    START,
+    State,
+    StateGraph,
+    console,
+    llm,
+    namespace,
+    pprint,
+    store,
+):
+    def _generate_joke(state: State) -> dict[str, str]:
+        """Generate an initial joke about the topic.
+
+        Args:
+            state: Current state containing the topic
+
+        Returns:
+            Dictionary with the generated joke
+        """
+        msg = llm.invoke(f"Write a short joke about {state['topic']}")
+        return {"joke": msg.content}
+
+    def _improve_joke(state: State) -> dict[str, str]:
+        """Improve an existing joke by adding wordplay.
+
+        This demonstrates selecting context from state - we read the existing
+        joke from state and use it to generate an improved version.
+
+        Args:
+            state: Current state containing the original joke
+
+        Returns:
+            Dictionary with the improved joke
+        """
+        print(f"Initial joke: {state['joke']}")
+
+        # Select the joke from state to present it to the LLM
+        msg = llm.invoke(f"Make this joke funnier by adding wordplay: {state['joke']}")
+        return {"improved_joke": msg.content}
+
+    # Build the workflow with two sequential nodes
+    _workflow = StateGraph(State)
+
+    # Add both joke generation nodes
+    _workflow.add_node("generate_joke", _generate_joke)
+    _workflow.add_node("improve_joke", _improve_joke)
+
+    # Connect nodes in sequence
+    _workflow.add_edge(START, "generate_joke")
+    _workflow.add_edge("generate_joke", "improve_joke")
+    _workflow.add_edge("improve_joke", END)
+
+    # Compile the workflow
+    _chain = _workflow.compile()
+
+    # Display the workflow visualization
+    Image(_chain.get_graph().draw_mermaid_png())
+
+    print("=" * 50)
+
+    # Execute the workflow to see context selection in action
+    _joke_generator_state = _chain.invoke({"topic": "cats"})
+
+    # Display the final state with rich formatting
+    console.print("\n[bold blue]Final Workflow State:[/bold blue]")
+    pprint(_joke_generator_state)
+
+    print("=" * 50)
+
+    # Initialize the memory store
+    _store = InMemoryStore()
+
+    # Define namespace for organizing memories
+    _namespace = ("rlm", "joke_generator")
+
+    # Store the generated joke in memory
+    _store.put(
+        _namespace,     # namespace for organization
+        "last_joke",   # key identifier
+        {"joke": _joke_generator_state["joke"]}  # value to store
+    )
+
+    # Select (retrieve) the joke from memory
+    retrieved_joke = store.get(namespace, "last_joke").value
+
+    # Display the retrieved context
+    console.print("\n[bold green]Retrieved Context from Memory:[/bold green]")
+    pprint(retrieved_joke)
+
     return
 
 
 @app.cell
-def _():
+def _(
+    BaseStore,
+    END,
+    InMemorySaver,
+    InMemoryStore,
+    START,
+    State,
+    StateGraph,
+    console,
+    llm,
+    namespace,
+    pprint,
+):
+    # Initialize storage components
+    _checkpointer = InMemorySaver()
+    _memory_store = InMemoryStore()
+
+    def _generate_joke(state: State, store: BaseStore) -> dict[str, str]:
+        """Generate a joke with memory-aware context selection.
+
+        This function demonstrates selecting context from memory before
+        generating new content, ensuring consistency and avoiding duplication.
+
+        Args:
+            state: Current state containing the topic
+            store: Memory store for persistent context
+
+        Returns:
+            Dictionary with the generated joke
+        """
+        # Select prior joke from memory if it exists
+        prior_joke = store.get(namespace, "last_joke")
+        if prior_joke:
+            prior_joke_text = prior_joke.value["joke"]
+            print(f"Prior joke: {prior_joke_text}")
+        else:
+            print("Prior joke: None!")
+
+        # Generate a new joke that differs from the prior one
+        prompt = (
+            f"Write a short joke about {state['topic']}, "
+            f"but make it different from any prior joke you've written: {prior_joke_text if prior_joke else 'None'}"
+        )
+        msg = llm.invoke(prompt)
+        new_joke = {"joke": msg.content}
+
+        # Store the new joke in memory for future context selection
+        store.put(namespace, "last_joke", new_joke)
+
+        return new_joke
+
+    print('=' * 50)
+
+    # Build the memory-aware workflow
+    _workflow = StateGraph(State)
+    _workflow.add_node("generate_joke", _generate_joke)
+
+    # Connect the workflow
+    _workflow.add_edge(START, "generate_joke")
+    _workflow.add_edge("generate_joke", END)
+
+    # Compile with both checkpointing and memory store
+    _chain = _workflow.compile(checkpointer=_checkpointer, store=_memory_store)
+
+    # Execute the workflow with the first thread
+    _config = {"configurable": {"thread_id": "1"}}
+    _joke_generator_state = _chain.invoke({"topic": "cats"}, _config)
+
+    print('=' * 50)
+
+    # Get the latest state of the graph
+    _latest_state = _chain.get_state(_config)
+
+    console.print("\n[bold magenta]Latest Graph State:[/bold magenta]")
+    pprint(_latest_state)
+
+    print('=' * 50)
+
+    # Execute the workflow with a second thread to demonstrate memory persistence
+    _config = {"configurable": {"thread_id": "2"}}
+    _joke_generator_state = _chain.invoke({"topic": "cats"}, _config)
+
+    print('=' * 50)
+
+    # Get the latest state of the graph
+    _latest_state = _chain.get_state(_config)
+
+    console.print("\n[bold magenta]Latest Graph State:[/bold magenta]")
+    pprint(_latest_state)
+
+    print('=' * 50)
     return
 
 
