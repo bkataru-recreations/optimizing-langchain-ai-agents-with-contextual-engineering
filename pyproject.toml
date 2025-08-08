@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "beautifulsoup4>=4.13.4",
     "langchain>=0.3.27",
     "langchain-community>=0.3.27",
     "langchain-core>=0.3.72",
@@ -16,4 +17,5 @@ dependencies = [
     "ollama>=0.5.1",
     "python-dotenv>=1.1.1",
     "rich>=14.1.0",
+    "tiktoken>=0.10.0",
 ]

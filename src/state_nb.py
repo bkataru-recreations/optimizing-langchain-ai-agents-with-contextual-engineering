@@ -42,27 +42,32 @@ def _():
     import os
 
     from dotenv import load_dotenv
-    # from langchain_nvidia_ai_endpoints import ChatNVIDIA
-    from langchain_ollama import ChatOllama
+    from langchain_nvidia_ai_endpoints import ChatNVIDIA
+    # from langchain_ollama import ChatOllama
 
     # --- Environment and Model Setup ---
     load_dotenv()
 
-    # if not os.environ.get("NVIDIA_API_KEY", "").startswith("nvapi-"):
-    #     print("NVIDIA_API_KEY not found in environment variables.")
-    #     nvidia_api_key = getpass.getpass("Enter your NVIDIA API key: ")
-    #     assert nvidia_api_key.startswith("nvapi-"), f"{nvidia_api_key[:5]}... is not a valid key"
-    #     os.environ["NVIDIA_API_KEY"] = nvidia_api_key
+    if not os.environ.get("NVIDIA_API_KEY", "").startswith("nvapi-"):
+        print("NVIDIA_API_KEY not found in environment variables.")
+        nvidia_api_key = getpass.getpass("Enter your NVIDIA API key: ")
+        assert nvidia_api_key.startswith("nvapi-"), f"{nvidia_api_key[:5]}... is not a valid key"
+        os.environ["NVIDIA_API_KEY"] = nvidia_api_key
 
     # Initialize the chat model to be used in the workflow
-    # llm = ChatNVIDIA(model="moonshotai/kimi-k2-instruct")
+    llm = ChatNVIDIA(
+        model="nvidia/llama-3.3-nemotron-super-49b-v1.5",
+        temperature=1,
+        top_p=1,
+        max_tokens=4096,
+    )
 
     os.environ["OLLAMA_HOST"] = "host.docker.internal"
 
-    llm = ChatOllama(
-        model="gemma3n:e2b",
-        temperature="1"
-    )
+    # llm = ChatOllama(
+    #     model="qwen3:4b-instruct",
+    #     temperature="0.7"
+    # )
     return (llm,)
 
 
@@ -513,11 +518,117 @@ def _(InMemoryStore, llm):
 
     print('=' * 50)
 
+    # _llm = ChatOllama(
+    #     model="qwen3:4b-instruct",
+    #     temperature="0.7"
+    # )
+
     # Initialize agent
     _builder = create_agent(llm, tool_registry)
     _agent = _builder.compile(store=_store)
 
     Image(_agent.get_graph().draw_mermaid_png())
+
+    print('=' * 50)
+
+    # Import a utility function to format and display messages
+    from utils import format_messages
+
+    # Define the query for the agent.
+    # This query asks the agent to use one of its math tools to find the arc cosine.
+    _query = "Use available tools to calculate arc cosine of 0.5"
+
+    # Invoke the agent with the query. The agent will search its tools,
+    # select the 'acos' tool based on the query's semantics, and execute it.
+    _result = _agent.invoke({"messages": _query})
+
+    # Format and display the final messages from the agent's execution.
+    format_messages(_result['messages'])
+    return (embeddings,)
+
+
+@app.cell
+def _(embeddings, llm):
+    # Import the WebBaseLoader to fetch documents from URLs
+    from langchain_community.document_loaders import WebBaseLoader
+
+    # Define the list of URLs for Lilian Weng's blog posts
+    _urls = [
+        "https://lilianweng.github.io/posts/2025-05-01-thinking/",
+        "https://lilianweng.github.io/posts/2024-11-28-reward-hacking/",
+        "https://lilianweng.github.io/posts/2024-07-07-hallucination/",
+        "https://lilianweng.github.io/posts/2024-04-12-diffusion-video/",
+    ]
+
+    # Load the documents from the specified URLs using a list comprehension.
+    # This creates a WebBaseLoader for each URL and calls its load() method.
+    _docs = [WebBaseLoader(url).load() for url in _urls]
+
+    print('=' * 50)
+
+    # Import the text splitter for chunking documents
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+    # Flatten the list of documents. WebBaseLoader returns a list of documents for each URL,
+    # so we have a list of lists. This comprehension combines them into a single list.
+    _docs_list = [item for sublist in _docs for item in sublist]
+
+    # Initialize the text splitter. This will split the documents into smaller chunks
+    # of a specified size, with some overlap between chunks to maintain context.
+    _text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+        chunk_size=1000,
+        chunk_overlap=10
+    )
+
+    # Split the documents into chunks
+    _doc_splits = _text_splitter.split_documents(_docs_list)
+
+    print('=' * 50)
+
+    # Import the necessary class for creating an in-memory vector store
+    from langchain_core.vectorstores import InMemoryVectorStore
+
+    # Create an in-memory vector store from the document splits.
+    # This uses the 'doc_splits' that was just created, along with the 'embeddings' model
+    # initialzed earlier to create vector representations of text chunks.
+    _vectorstore = InMemoryVectorStore.from_documents(
+        documents=_doc_splits, embedding=embeddings
+    )
+
+    # Create a retriever from the vector store.
+    # The retriever provides an interface to search for relevant documents
+    # based on a query.
+    _retriever = _vectorstore.as_retriever()
+
+    print('=' * 50)
+
+    # Import the function to create a retriever tool
+    from langchain.tools.retriever import create_retriever_tool
+
+    # Create a retriever tool from the vector store retriever.
+    # This tool allows the agent to search for and retrieve relevant
+    # documents from the blog posts based on a query.
+    _retriever_tool = create_retriever_tool(
+        _retriever,
+        "retrieve_blog_posts",
+        "Search and return information about Lilian Weng's blog posts.",
+    )
+
+    # The following line is an example of how to invoke the tool directly.
+    # It's commented out as it's not needed for the agent execution flow but can be useful for testing.
+    # _retriever_tool.invoke({"query": "types of reward hacking"})
+
+    print('=' * 50)
+
+    # Augment the LLM with tools
+    _tools = [_retriever_tool]
+    _tools_by_name = {tool.name: tool for tool in _tools}
+    llm_with_tools = llm.bind_tools(_tools)
+    return
+
+
+@app.cell
+def _():
     return
 
 

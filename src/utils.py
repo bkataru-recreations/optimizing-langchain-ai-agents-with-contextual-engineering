@@ -94,7 +94,7 @@ def format_messages(messages: List[Any]) -> None:
             # Update the title and set the border color to green.
             panel_args.update(title="🤖 Assistant", border_style="green")
         # If the message is a tool's output
-        elif msg_type = "Tool":
+        elif msg_type == "Tool":
             # Update the title and set the border color to yellow.
             panel_args.update(title="🔧 Tool Output", border_style="yellow")
 
